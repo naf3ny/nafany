@@ -79,7 +79,7 @@ const ProviderPortfolio = () => {
           setBookings(bookingsData);
         }
       } else {
-        navigate('/naf3ny/login');
+        navigate('/nafany/login');
       }
       setLoading(false);
     };
@@ -312,7 +312,7 @@ const ProviderPortfolio = () => {
     // نحصل على معرف مقدم الخدمة بطريقة آمنة
     const providerId = userData.id || userData.uid;
     
-    navigate(`/naf3ny/chat/${clientId}`, {
+    navigate(`/nafany/chat/${clientId}`, {
       state: {
         provider: {
           id: providerId,
@@ -572,7 +572,7 @@ const ProviderPortfolio = () => {
     localStorage.removeItem('currentUser');
     setIsLoggedIn(false);
     setUserData(null);
-    navigate('/naf3ny');
+    navigate('/nafany');
   };
 
   const renderBookingsSection = () => {

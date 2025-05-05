@@ -6,7 +6,7 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [ tailwindcss(),
     react()],
-    base: '/naf3ny/',
+    base: '/nafany/',
 }
 )
 

@@ -780,7 +780,7 @@ const renderEditModal = () => (
       <motion.button 
                   onClick={() => {
                     
-                    navigate('/naf3ny/login');
+                    navigate('/nafany/login');
                   }}
                   className="bg-red-500 text-white px-5 py-2 rounded-lg hover:bg-red-600 text-base"
                   whileHover={{ scale: 1.05 }}

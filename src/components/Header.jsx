@@ -19,7 +19,7 @@ const Header = ({ isLoggedIn, onLogout, userData }) => {
       <div className="flex items-center justify-between w-full md:w-auto">
         {/* الشعار */}
         <img 
-          src="/naf3ny/IMG-20250322-WA0070.jpg" 
+          src="/nafany/IMG-20250322-WA0070.jpg" 
           alt="Logo" 
           className="h-12 w-12 sm:h-16 sm:w-16 md:h-20 md:w-20 object-contain ml-2 md:ml-4" 
         />
@@ -27,19 +27,19 @@ const Header = ({ isLoggedIn, onLogout, userData }) => {
         {/* روابط سطح المكتب - مخفية في الجوال */}
         <nav className="hidden md:flex items-center mr-4 space-x-reverse space-x-4 lg:space-x-6 font-bold text-base lg:text-xl">
           <button 
-            onClick={() => navigate('/naf3ny/complaints')} 
+            onClick={() => navigate('/nafany/complaints')} 
             className="text-gray-700 hover:text-cyan-800 transition-colors"
           >
             الشكاوى والاقتراحات
           </button>
           <button 
-            onClick={() => navigate('/naf3ny/contact')} 
+            onClick={() => navigate('/nafany/contact')} 
             className="text-gray-700 hover:text-cyan-800 transition-colors"
           >
             تواصل معنا
           </button>
           <button 
-            onClick={() => navigate('/naf3ny/settings')} 
+            onClick={() => navigate('/nafany/settings')} 
             className="text-gray-700 hover:text-cyan-800 transition-colors"
           >
             الإعدادات
@@ -66,7 +66,7 @@ const Header = ({ isLoggedIn, onLogout, userData }) => {
         <motion.button 
           onClick={() => {
             onLogout();
-            navigate('/naf3ny/login');
+            navigate('/nafany/login');
           }}
           className="bg-red-500 text-white px-5 py-2 rounded-lg hover:bg-red-600 text-base"
           whileHover={{ scale: 1.05 }}
@@ -107,7 +107,7 @@ const Header = ({ isLoggedIn, onLogout, userData }) => {
               <nav className="flex flex-col items-end p-6 space-y-6 font-bold text-lg">
                 <button 
                   onClick={() => {
-                    navigate('/naf3ny/settings');
+                    navigate('/nafany/settings');
                     setIsMobileMenuOpen(false);
                   }} 
                   className="text-gray-700 hover:text-cyan-800 transition-colors w-full text-right"
@@ -116,7 +116,7 @@ const Header = ({ isLoggedIn, onLogout, userData }) => {
                 </button>
                 <button 
                   onClick={() => {
-                    navigate('/naf3ny/contact');
+                    navigate('/nafany/contact');
                     setIsMobileMenuOpen(false);
                   }} 
                   className="text-gray-700 hover:text-cyan-800 transition-colors w-full text-right"
@@ -125,7 +125,7 @@ const Header = ({ isLoggedIn, onLogout, userData }) => {
                 </button>
                 <button 
                   onClick={() => {
-                    navigate('/naf3ny/complaints');
+                    navigate('/nafany/complaints');
                     setIsMobileMenuOpen(false);
                   }} 
                   className="text-gray-700 hover:text-cyan-800 transition-colors w-full text-right"
@@ -138,7 +138,7 @@ const Header = ({ isLoggedIn, onLogout, userData }) => {
                   <motion.button 
                     onClick={() => {
                       onLogout();
-                      navigate('/naf3ny/login');
+                      navigate('/nafany/login');
                       setIsMobileMenuOpen(false);
                     }}
                     className="bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 text-base w-full text-center"

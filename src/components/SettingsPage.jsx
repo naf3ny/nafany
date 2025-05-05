@@ -63,7 +63,7 @@ const SettingsPage = () => {
         
         const storedUser = localStorage.getItem('currentUser');
         if (!storedUser) {
-          navigate('/naf3ny/login');
+          navigate('/nafany/login');
           return;
         }
   
@@ -121,7 +121,7 @@ const SettingsPage = () => {
           }
         } else {
           alert("لم يتم العثور على بيانات المستخدم");
-          navigate('/naf3ny');
+          navigate('/nafany');
         }
       } catch (error) {
         console.error("Error fetching user data:", error);
@@ -283,7 +283,7 @@ const SettingsPage = () => {
     >
       <div className="container mx-auto px-4">
         <motion.button
-          onClick={() => navigate(fromProvider ? '/naf3ny/servicer_page' : '/naf3ny')}
+          onClick={() => navigate(fromProvider ? '/nafany/servicer_page' : '/nafany')}
           className="mb-8 flex items-center text-cyan-800 font-medium"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}

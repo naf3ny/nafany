@@ -118,7 +118,7 @@ const Contact = () => {
         {/* Back Button */}
         <div className="p-8 text-center">
           <motion.button
-            onClick={() => navigate('/naf3ny')}
+            onClick={() => navigate('/nafany')}
             className="bg-cyan-700 text-white px-6 py-2 rounded-lg hover:bg-cyan-800 inline-flex items-center gap-2"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}

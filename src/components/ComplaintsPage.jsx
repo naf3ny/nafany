@@ -104,7 +104,7 @@ const ComplaintsPage = () => {
     >
       <div className="container mx-auto px-4">
         <motion.button
-          onClick={() => navigate('/naf3ny')}
+          onClick={() => navigate('/nafany')}
           className="mb-8 flex items-center text-cyan-800 font-medium"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
