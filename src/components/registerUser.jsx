@@ -20,9 +20,8 @@ const RegisterUser = () => {
   const [usernameExists, setUsernameExists] = useState(false);
 
   const governorates = [
-    "وسط البلد", "الزمالك", "المعادي", "مدينة نصر",
-    "المرج", "حلوان", "السيدة زينب",
-    "شبرا", "المطرية"
+    "وسط البلد", "الزمالك"
+   
   ];
 
   const validateForm = () => {

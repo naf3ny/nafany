@@ -17,11 +17,10 @@ const JobsPage = () => {
   const [governoratesList, setGovernoratesList] = useState([]);
 
   // قائمة المحافظات المصرية
-  const allGovernorates = [
-    "وسط البلد", "الزمالك", "المعادي", "مدينة نصر",
-    "المرج", "حلوان", "السيدة زينب",
-    "شبرا", "المطرية"
-];
+  const governorates = [
+    "وسط البلد", "الزمالك"
+   
+  ];
 
   useEffect(() => {
     const fetchJobs = async () => {
