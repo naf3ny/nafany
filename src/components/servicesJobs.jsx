@@ -61,7 +61,7 @@ const JobsPage = () => {
         setFilteredJobs(jobsData);
         console.log('Jobs data:', jobsData);
         setProfessionsList(Array.from(professions));
-        setGovernoratesList(['الكل', ...allGovernorates]);
+        setGovernoratesList([ ...governorates]);
         setLoading(false);
       } catch (err) {
         console.error('Error fetching jobs:', err);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { db } from '../firebase';
+import { db, storage } from '../firebase';
 import { 
   collection, 
   addDoc, 
@@ -12,9 +12,12 @@ import {
   serverTimestamp,
   updateDoc,
   doc,
-  deleteDoc
+  deleteDoc,
+  limit,
+  offset
 } from 'firebase/firestore';
-import { FaStar, FaRegStar, FaEdit, FaTrash,FaUserCircle ,FaArrowRight  } from 'react-icons/fa';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { FaStar, FaRegStar, FaEdit, FaTrash, FaUserCircle, FaArrowRight } from 'react-icons/fa';
 import Header from './Header';
 
 const ProviderPortfolio = () => {
@@ -27,6 +30,8 @@ const ProviderPortfolio = () => {
   const [loading, setLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [bookings, setBookings] = useState([]);
+  const [bookingsPage, setBookingsPage] = useState(1);
+  const [hasMoreBookings, setHasMoreBookings] = useState(true);
 
   const [newWork, setNewWork] = useState({
     title: '',
@@ -50,47 +55,63 @@ const ProviderPortfolio = () => {
   });
 
   useEffect(() => {
+    const abortController = new AbortController();
     
     const checkUser = async () => {
-      const storedUser = localStorage.getItem('currentUser');
-      if (storedUser && storedUser !== '""') {
-        const parsedUser = JSON.parse(storedUser);
-        setUserData(parsedUser);
-        setIsLoggedIn(true);
-        
-        const [worksData, providersData, chatsData, bookingsData] = await Promise.all([
-          fetchProviderWorks(parsedUser.email),
-          fetchAllProviders(parsedUser.email),
-          fetchProviderChats(parsedUser.id || parsedUser.uid),
-          fetchProviderBookings(parsedUser.email)
-        ]);
-        
-        if (providersData) {
-         
-          setProvidersData(providersData);
+      try {
+        const storedUser = localStorage.getItem('currentUser');
+        if (storedUser && storedUser !== '""') {
+          const parsedUser = JSON.parse(storedUser);
+          setUserData(parsedUser);
+          setIsLoggedIn(true);
+          
+          // تحميل البيانات الأساسية أولاً
+          await fetchProviderWorks(parsedUser.email);
+          setLoading(false);
+          
+          // تحميل البيانات الأخرى في الخلفية
+          fetchAllProviders(parsedUser.email).then(providersData => {
+            if (providersData) setProvidersData(providersData);
+          });
+          
+          fetchProviderChats(parsedUser.id || parsedUser.uid).then(chatsData => {
+            if (chatsData) setChats(chatsData);
+          });
+          
+          fetchProviderBookings(parsedUser.email, bookingsPage).then(bookingsData => {
+            if (bookingsData) {
+              setBookings(bookingsData);
+              setHasMoreBookings(bookingsData.length === 10);
+            }
+          });
+        } else {
+          navigate('/nafany/login');
         }
-        
-        if (chatsData) {
-        
-          setChats(chatsData);
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          console.error(error);
+          setLoading(false);
         }
-  
-        if (bookingsData) {
-          setBookings(bookingsData);
-        }
-      } else {
-        navigate('/nafany/login');
       }
-      setLoading(false);
     };
-  
+    
     checkUser();
-  }, [navigate, location]);
-
- 
+    
+    return () => abortController.abort();
+  }, [navigate, location, bookingsPage]);
 
   const fetchAllProviders = async (currentProviderEmail) => {
     try {
+      const cacheKey = `providers_${currentProviderEmail}`;
+      const cachedData = localStorage.getItem(cacheKey);
+      
+      if (cachedData) {
+        const parsedData = JSON.parse(cachedData);
+        if (Date.now() - parsedData.timestamp < 30 * 60 * 1000) { // 30 دقيقة تخزين مؤقت
+          return parsedData;
+        }
+      }
+
       const providersQuery = query(collection(db, 'serviceProviders'));
       const providersSnapshot = await getDocs(providersQuery);
       
@@ -122,11 +143,15 @@ const ProviderPortfolio = () => {
 
       const currentProvider = providersData.find(p => p.email === currentProviderEmail);
       
-      return {
+      const result = {
         allProviders: providersData,
         currentProvider,
-        totalProviders: providersData.length
+        totalProviders: providersData.length,
+        timestamp: Date.now()
       };
+      
+      localStorage.setItem(cacheKey, JSON.stringify(result));
+      return result;
     } catch (error) {
       console.error('Error fetching providers:', error);
       return null;
@@ -134,6 +159,19 @@ const ProviderPortfolio = () => {
   };
 
   const fetchProviderWorks = async (email) => {
+    const cacheKey = `works_${email}`;
+    const cachedData = localStorage.getItem(cacheKey);
+    
+    if (cachedData) {
+      const parsedData = JSON.parse(cachedData);
+      setWorks(parsedData.works);
+      setReviews(parsedData.reviews);
+      
+      if (Date.now() - parsedData.timestamp < 15 * 60 * 1000) { // 15 دقيقة تخزين مؤقت
+        return parsedData.works;
+      }
+    }
+    
     try {
       const q = query(collection(db, 'providerWorks'), where('providerEmail', '==', email));
       const querySnapshot = await getDocs(q);
@@ -141,7 +179,6 @@ const ProviderPortfolio = () => {
         id: doc.id,
         ...doc.data()
       }));
-      setWorks(fetchedWorks);
       
       const reviewsQuery = query(collection(db, 'reviews'), where('providerEmail', '==', email));
       const reviewsSnapshot = await getDocs(reviewsQuery);
@@ -149,6 +186,15 @@ const ProviderPortfolio = () => {
         id: doc.id,
         ...doc.data()
       }));
+      
+      const result = {
+        works: fetchedWorks,
+        reviews: reviewsData,
+        timestamp: Date.now()
+      };
+      
+      localStorage.setItem(cacheKey, JSON.stringify(result));
+      setWorks(fetchedWorks);
       setReviews(reviewsData);
       
       return fetchedWorks;
@@ -158,12 +204,14 @@ const ProviderPortfolio = () => {
     }
   };
 
-  const fetchProviderBookings = async (providerEmail) => {
+  const fetchProviderBookings = async (providerEmail, page = 1, limit = 10) => {
     try {
       const bookingsQuery = query(
         collection(db, 'bookings'),
         where('providerEmail', '==', providerEmail),
-        orderBy('createdAt', 'desc')
+        orderBy('createdAt', 'desc'),
+        limit(limit),
+        offset((page - 1) * limit)
       );
       
       const querySnapshot = await getDocs(bookingsQuery);
@@ -172,7 +220,6 @@ const ProviderPortfolio = () => {
         return {
           id: doc.id,
           ...data,
-          // تحويل التواريخ هنا
           createdAt: formatTimestamp(data.createdAt),
           bookingDate: data.bookingDate || 'غير محدد',
           bookingTime: data.bookingTime || 'غير محدد'
@@ -184,20 +231,30 @@ const ProviderPortfolio = () => {
     }
   };
 
+  const loadMoreBookings = async () => {
+    const newPage = bookingsPage + 1;
+    const newBookings = await fetchProviderBookings(userData.email, newPage);
+    
+    if (newBookings.length > 0) {
+      setBookings(prev => [...prev, ...newBookings]);
+      setBookingsPage(newPage);
+      setHasMoreBookings(newBookings.length === 10);
+    } else {
+      setHasMoreBookings(false);
+    }
+  };
+
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return 'غير محدد';
     
-    // إذا كان Timestamp من Firebase (به seconds و nanoseconds)
     if (timestamp.seconds) {
       return new Date(timestamp.seconds * 1000).toLocaleString('ar-EG');
     }
     
-    // إذا كان كائن Date عادي
     if (timestamp.toDate) {
       return timestamp.toDate().toLocaleString('ar-EG');
     }
     
-    // إذا كان نصًا
     return timestamp;
   };
 
@@ -212,40 +269,46 @@ const ProviderPortfolio = () => {
       setBookings(prev => prev.map(booking => 
         booking.id === bookingId ? { ...booking, status: newStatus } : booking
       ));
+      
+      // تحديث التخزين المؤقت
+      const cacheKey = `works_${userData.email}`;
+      const cachedData = localStorage.getItem(cacheKey);
+      if (cachedData) {
+        localStorage.removeItem(cacheKey);
+        fetchProviderWorks(userData.email);
+      }
     } catch (error) {
       console.error('Error updating booking status:', error);
     }
   };
 
-  const handleImageUpload = (files, isEditing = false) => {
-    const imageFiles = Array.from(files);
-    const base64Images = [];
-    const previewImages = [];
-
-    imageFiles.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        base64Images.push(e.target.result);
-        previewImages.push(e.target.result);
-
-        if (base64Images.length === imageFiles.length) {
-          if (isEditing) {
-            setEditWorkData(prev => ({
-              ...prev,
-              images: [...prev.images, ...base64Images],
-              previewImages: [...prev.previewImages, ...previewImages]
-            }));
-          } else {
-            setNewWork(prev => ({
-              ...prev,
-              images: base64Images,
-              previewImages: previewImages
-            }));
-          }
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+  const handleImageUpload = async (files, isEditing = false) => {
+    try {
+      const uploadedUrls = [];
+      
+      for (const file of files) {
+        const storageRef = ref(storage, `works/${Date.now()}_${file.name}`);
+        await uploadBytes(storageRef, file);
+        const url = await getDownloadURL(storageRef);
+        uploadedUrls.push(url);
+      }
+      
+      if (isEditing) {
+        setEditWorkData(prev => ({
+          ...prev,
+          images: [...prev.images, ...uploadedUrls],
+          previewImages: [...prev.previewImages, ...uploadedUrls]
+        }));
+      } else {
+        setNewWork(prev => ({
+          ...prev,
+          images: uploadedUrls,
+          previewImages: uploadedUrls
+        }));
+      }
+    } catch (error) {
+      console.error('Error uploading images:', error);
+    }
   };
 
   const handleAddWork = async (e) => {
@@ -263,6 +326,11 @@ const ProviderPortfolio = () => {
       };
   
       await addDoc(collection(db, 'providerWorks'), workData);
+      
+      // تحديث التخزين المؤقت
+      const cacheKey = `works_${userData.email}`;
+      localStorage.removeItem(cacheKey);
+      
       await fetchProviderWorks(userData.email);
       setNewWork({ title: '', description: '', images: [], previewImages: [] });
     } catch (error) {
@@ -289,6 +357,11 @@ const ProviderPortfolio = () => {
         description: editWorkData.description,
         images: editWorkData.images
       });
+      
+      // تحديث التخزين المؤقت
+      const cacheKey = `works_${userData.email}`;
+      localStorage.removeItem(cacheKey);
+      
       await fetchProviderWorks(userData.email);
       setEditingWorkId(null);
       setEditWorkData({ title: '', description: '', images: [], previewImages: [] });
@@ -301,6 +374,11 @@ const ProviderPortfolio = () => {
     if (window.confirm('هل أنت متأكد من حذف هذا العمل؟')) {
       try {
         await deleteDoc(doc(db, 'providerWorks', workId));
+        
+        // تحديث التخزين المؤقت
+        const cacheKey = `works_${userData.email}`;
+        localStorage.removeItem(cacheKey);
+        
         await fetchProviderWorks(userData.email);
       } catch (error) {
         console.error('Error deleting work:', error);
@@ -309,7 +387,6 @@ const ProviderPortfolio = () => {
   };
 
   const handleStartChat = (clientId, clientName, clientEmail) => {
-    // نحصل على معرف مقدم الخدمة بطريقة آمنة
     const providerId = userData.id || userData.uid;
     
     navigate(`/nafany/chat/${clientId}`, {
@@ -329,9 +406,18 @@ const ProviderPortfolio = () => {
     });
   };
   
-  // تعديل الدالة المسؤولة عن جلب المحادثات
   const fetchProviderChats = async (providerId) => {
     try {
+      const cacheKey = `chats_${providerId}`;
+      const cachedData = localStorage.getItem(cacheKey);
+      
+      if (cachedData) {
+        const parsedData = JSON.parse(cachedData);
+        if (Date.now() - parsedData.timestamp < 5 * 60 * 1000) { // 5 دقائق تخزين مؤقت
+          return parsedData.chats;
+        }
+      }
+
       const chatsQuery = query(
         collection(db, 'chats'),
         where('participants', 'array-contains', providerId),
@@ -339,11 +425,18 @@ const ProviderPortfolio = () => {
       );
       
       const querySnapshot = await getDocs(chatsQuery);
-      return querySnapshot.docs.map(doc => ({
+      const chatsData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         lastMessageTime: doc.data().lastMessageTime?.toDate?.() || new Date()
       }));
+      
+      localStorage.setItem(cacheKey, JSON.stringify({
+        chats: chatsData,
+        timestamp: Date.now()
+      }));
+      
+      return chatsData;
     } catch (error) {
       console.error('Error fetching chats:', error);
       return [];
@@ -421,7 +514,7 @@ const ProviderPortfolio = () => {
               {chats.map((chat) => {
                 const clientId = chat.participants[0] === userData.id ? chat.participants[1] : chat.participants[0];
                 const clientName = chat.participantsNames[0] === userData.name ? chat.participantsNames[1] : chat.participantsNames[0];
-                console.log(clientId)
+                
                 return (
                   <div 
                     key={chat.id}
@@ -576,22 +669,18 @@ const ProviderPortfolio = () => {
   };
 
   const renderBookingsSection = () => {
-    // دالة مساعدة لتحويل التواريخ
     const formatDate = (dateObj) => {
       if (!dateObj) return 'غير محدد';
       
-      // إذا كان Timestamp من Firebase
       if (dateObj.seconds) {
         const date = new Date(dateObj.seconds * 1000);
         return date.toLocaleDateString('ar-EG');
       }
       
-      // إذا كان كائن Date
       if (dateObj.toDate) {
         return dateObj.toDate().toLocaleDateString('ar-EG');
       }
       
-      // إذا كان نصًا
       return dateObj;
     };
   
@@ -602,7 +691,6 @@ const ProviderPortfolio = () => {
         {bookings.length > 0 ? (
           <div className="space-y-4">
             {bookings.map((booking, index) => {
-              // تحويل التواريخ هنا لتجنب التكرار
               const formattedCreatedAt = formatDate(booking.createdAt);
               const formattedBookingDate = formatDate(booking.bookingDate);
               
@@ -693,6 +781,17 @@ const ProviderPortfolio = () => {
                 </motion.div>
               );
             })}
+            
+            {hasMoreBookings && (
+              <div className="text-center mt-4">
+                <button
+                  onClick={loadMoreBookings}
+                  className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg"
+                >
+                  تحميل المزيد من الحجوزات
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center text-gray-500 py-8">
@@ -830,7 +929,7 @@ const ProviderPortfolio = () => {
             animate={{ x: 0, opacity: 1 }}
           >
             {renderRatingStats()}
-              {renderBookingsSection()}
+            {renderBookingsSection()}
             
             <h2 className="text-2xl font-bold text-cyan-800">أعمالك السابقة</h2>
             {works.length > 0 ? (
